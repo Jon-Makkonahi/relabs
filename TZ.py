@@ -1,7 +1,6 @@
-from typing import Union
-
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
+import json
 
 app = FastAPI()
 
@@ -9,38 +8,35 @@ html = """
 <!DOCTYPE html>
 <html>
     <head>
-        <title>Чат (Тестовое задание)</title>
+        <title>Отправить сообщение</title>
     </head>
     <body>
-        <h1>WebSocket Чат</h1>
+        <h1>WebSocketFastAPI чат</h1>
         <form action="" onsubmit="sendMessage(event)">
-            <label>Отправитель: <input type="text" id="itemId" autocomplete="off"/></label>
-            <label>Токен: <input type="text" id="token" autocomplete="off"/></label>
-            <button onclick="connect(event)">Подключиться</button>
-            <hr>
-            <label>Сообщение: <input type="text" id="messageText" autocomplete="off"/></label>
+            <input type="text" id="messageText" autocomplete="off"/>
             <button>Отправить</button>
         </form>
-        <ol id='messages'>
-        </ol>
+        <ul id='messages'>
+        </ul>
         <script>
-        var ws = null;
-            function connect(event) {
-                var itemId = document.getElementById("itemId")
-                var token = document.getElementById("token")
-                ws = new WebSocket("ws://localhost:8000/items/" + itemId.value + "/ws?token=" + token.value);
-                ws.onmessage = function(event) {
-                    var messages = document.getElementById('messages')
-                    var message = document.createElement('li')
-                    var content = document.createTextNode(event.data)
-                    message.appendChild(content)
-                    messages.appendChild(message)
-                };
-                event.preventDefault()
-            }
+            var ws = new WebSocket("ws://localhost:8000/ws");
+            ws.onmessage = function(event) {
+                var messages = document.getElementById('messages')
+                var message = document.createElement('li')
+                message_json = JSON.parse(event.data)
+                message_num = message_json['message_number']
+                message_out = message_json['send_message']
+                var content = document.createTextNode(message_num + '. сообщение: ' + message_out)
+                message.appendChild(content)
+                messages.appendChild(message)
+            };
             function sendMessage(event) {
-                var input = document.getElementById("messageText")
-                ws.send(input.value)
+                var input = document.getElementById("messageText");
+                let message_data = {
+                                  send_message: input.value,
+                                };
+                let json_message = JSON.stringify(message_data);
+                ws.send(json_message)
                 input.value = ''
                 event.preventDefault()
             }
@@ -49,21 +45,18 @@ html = """
 </html>
 """
 
-
 @app.get("/")
 async def get():
     return HTMLResponse(html)
 
-
-@app.websocket("/items/{item_id}/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    item_id: str,
-    q: Union[int, None] = None,
-):
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    message_number = 0
     await websocket.accept()
     while True:
         data = await websocket.receive_text()
-        if q is not None:
-            await websocket.send_text(f"{q}")
-        await websocket.send_text(f"Сообщение:{data} - отправил: {item_id}")
+        message_number += 1
+        message = json.loads(data)
+        message['message_number'] = message_number
+        await websocket.send_text(json.dumps(message))
+
