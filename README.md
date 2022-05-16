@@ -17,7 +17,16 @@
 
 Установка:
 1. Склонируйте репозиторий
+```
+git clone git@github.com:Jon-Makkonahi/relabs.git
+```
 2. Создайте и войдите в вирутальное окружение
+```
+python3 -m venv venv
+```
+```
+source env/bin/activate
+```
 3. Установите зависимости:
     pip install -r requirements.txt
 4. Запустите проект uvicorn TZ:app --reload
